@@ -143,3 +143,6 @@ cgm_df_pkl
 hrv_dask_pkl
 hrv_df_pkl
 test.ipynb
+
+# parquet files
+*.parquet.gzip
