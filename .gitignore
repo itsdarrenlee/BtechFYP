@@ -139,10 +139,8 @@ dmypy.json
 dask-worker-space/
 
 # pickle files
-cgm_df_pkl
-hrv_dask_pkl
-hrv_df_pkl
 test.ipynb
+*_pkl
 
 # parquet files
 *.parquet.gzip

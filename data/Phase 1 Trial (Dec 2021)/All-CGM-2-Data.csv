@@ -1,4 +1,4 @@
-Device,Serial Number,Date,Time,Glucose
+device,serial number,date,time,glucose
 FreeStyle LibreLink,05b3a301-d18f-421b-8b43-c76000741922,11/21/2021,7:45,6.1
 FreeStyle LibreLink,05b3a301-d18f-421b-8b43-c76000741922,11/21/2021,8:00,5.8
 FreeStyle LibreLink,05b3a301-d18f-421b-8b43-c76000741922,11/21/2021,8:15,5.7
