@@ -24,7 +24,7 @@ def timeseries_evaluation_metrics_func(y_true, y_pred):
             "r2": r2}
 
 def adfuller_test(series, signif=0.05, name='', verbose=False):
-    """Perform ADFuller to test for Stationarity of given series and print report"""
+    """Perform ADFuller to test for Stationarity of given series"""
     r = adfuller(series, autolag='AIC')
     output = {'test_statistic':round(r[0], 4), 'pvalue':round(r[1], 4), 'n_lags':round(r[2], 4), 'n_obs':r[3]}
     p_value = output['pvalue'] 
