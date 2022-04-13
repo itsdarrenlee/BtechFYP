@@ -1,5 +1,4 @@
 # Project Title: A data-driven approach to healthcare treatment with smartwatches
-## Summary: In recent years, increased technological advancement has enhanced the functionality of smart watches. The latest devices can track a plethora of healthcare metrics, such as sleep, heart rate, calories burnt, activity levels etc.
 
 The aim of the project is then to utilize the different metrics from the smart watches and use them to categorize the quality of health of a patient. With the knowledge from the data collection, we could then have a trained machine learning model from which we could interpret and draw conclusions from.
 
