@@ -9,8 +9,7 @@ from statsmodels.tsa.stattools import grangercausalitytests
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from sklearn.preprocessing import MinMaxScaler
-
-import tensorflow as tf
+from statsmodels.tsa.stattools import pacf, acf
 
 def timeseries_evaluation_metrics_func(y_true, y_pred):
     def mean_absolute_percentage_error(y_true, y_pred): 
@@ -29,8 +28,17 @@ def timeseries_evaluation_metrics_func(y_true, y_pred):
             "mape": mape,
             "r2": r2}
 
-def adfuller_test(series, signif=0.05, name='', verbose=False):
-    """Perform ADFuller to test for Stationarity of given series"""
+
+def adfuller_test(series, signif=0.05, name='', test = 'ssr_chi2test', verbose=False):
+    """Check Granger Causality of all possible combinations of the Time series.
+    The rows are the response variable, columns are predictors. The values in the table 
+    are the P-Values. P-Values lesser than the significance level (0.05), implies 
+    the Null Hypothesis that the coefficients of the corresponding past values is 
+    zero, that is, the X does not cause Y can be rejected.
+
+    data      : pandas dataframe containing the time series variables
+    variables : list containing names of the time series variables.
+    """
     r = adfuller(series, autolag='AIC')
     output = {'test_statistic':round(r[0], 4), 'pvalue':round(r[1], 4), 'n_lags':round(r[2], 4), 'n_obs':r[3]}
     p_value = output['pvalue'] 
@@ -106,197 +114,65 @@ def grangers_causation_matrix(data, variables, test='ssr_chi2test', verbose=Fals
 
 
 def scale_df(train_df, val_df, test_df, scaler=MinMaxScaler(),
-             drop_dependent=True, dropvar='glucose',
-             dep_var='glucose', return_as_np=True):
-    ''' 
-    Scales train, val and test dataframes
-    
-    RETURN: 
-    
-    X_train_scaled, X_val_scaled, X_test_scaled, y_train_scaled, y_val_scaled, \ 
-    y_test_scaled
-    
-    OR
-    
-    train_df, val_df, test_df
-    
-    '''
+             drop_dependent=True, dep_var='glucose'):
+    """Scales using defined scaler and reshape dataframe in preparation for TimeseriesGenerator input
 
-    if drop_dependent:
-        train_df = train_df.drop(dropvar, axis=1)
-        val_df = val_df.drop(dropvar, axis=1)
-        test_df = test_df.drop(dropvar, axis=1)
+    Args:
+        train_df (Pandas DataFrame): Train set, including all variables
+        val_df (Pandas DataFrame): Validation set, including all variables
+        test_df (Pandas DataFrame): Test set, including all variables
+        scaler (Sklearn Scaler Object, optional): Defined Scaler to use. Defaults to MinMaxScaler().
+        drop_dependent (bool, optional): Drop dependent, i.e. 'Glucose' if desirable. Defaults to True.
+        dep_var (str, optional): Dependent variable. Defaults to 'glucose'.
+        
+    Returns:
+        Numpy Arrays: Tuple of X_train, X_validation, X_test, y_train, y_validation and y_test
+    """
 
-    # independent variables
+    if drop_dependent: # drop dependent variable, 'glucose' if desirable
+        train_df = train_df.drop(dep_var, axis=1)
+        val_df = val_df.drop(dep_var, axis=1)
+        test_df = test_df.drop(dep_var, axis=1)
+    
+    print(f"Shape of train: {train_df.shape}, shape of validation: {val_df.shape}, \
+ shape of test: {test_df.shape}") # sanity check for dataframe shape if var was dropped
+
+    # independent variable scaling
     X_train_scaled = scaler.fit_transform(train_df)
     X_val_scaled = scaler.transform(val_df)
     X_test_scaled = scaler.transform(test_df)
 
-    # dependent variables
-    y_train_scaled = scaler.fit_transform(train_df[dep_var].
+    # dependent variable scaling
+    y_train_scaled = scaler.fit_transform(train[dep_var].
                                         values.reshape(-1, 1))
-    y_val_scaled = scaler.transform(val_df[dep_var].
+    y_val_scaled = scaler.transform(val[dep_var].
                                         values.reshape(-1, 1))
-    y_test_scaled = scaler.transform(test_df[dep_var].
+    y_test_scaled = scaler.transform(test[dep_var].
                                         values.reshape(-1, 1))
     
-    # return as pd dataframe for debugging or raw numpy arrays
-    if return_as_np:
-        return (X_train_scaled, X_val_scaled, X_test_scaled, y_train_scaled,
-                y_val_scaled, y_test_scaled)
-    else:
-        if drop_dependent:
-            # add glucose back to df
-            train_df_scaled = pd.DataFrame(index=train_df.index,
-                                           columns=train_df.columns,
-                                           data=np.hstack((X_train_scaled,
-                                                           y_train_scaled)))
-            val_df_scaled = pd.DataFrame(index=val_df.index,
-                                          columns=val_df.columns,
-                                        data=np.hstack((X_val_scaled,
-                                                        y_val_scaled)))
-            
-            test_df_scaled = pd.DataFrame(index=test_df.index,
-                                          columns=test_df.columns,
-                                        data=np.hstack((X_test_scaled,
-                                                        y_test_scaled)))
-        else:
-            train_df_scaled = pd.DataFrame(index=train_df.index, columns=train_df.columns,
-                                        data=X_train_scaled)
-            
-            val_df_scaled = pd.DataFrame(index=val_df.index, columns=val_df.columns,
-                                        data=X_val_scaled)
-            
-            test_df_scaled = pd.DataFrame(index=test_df.index, columns=test_df.columns,
-                                        data=X_test_scaled)
-        
-        # return both df
-        return train_df_scaled, val_df_scaled, test_df_scaled
+    # return as raw numpy arrays
+    return (X_train_scaled, X_val_scaled, X_test_scaled, y_train_scaled,
+            y_val_scaled, y_test_scaled, scaler)    
+
+
+def create_corr_plot(series, lags=30, plot_pacf=False):
+    corr_array = pacf(series.dropna(), alpha=0.05, nlags=lags) if plot_pacf\
+        else acf(series.dropna(), alpha=0.05, nlags=lags)
+    lower_y = corr_array[1][:,0] - corr_array[0]
+    upper_y = corr_array[1][:,1] - corr_array[0]
+
+    fig = go.Figure()
+    [fig.add_scatter(x=(x,x), y=(0,corr_array[0][x]), mode='lines',line_color='#3f3f3f') 
+     for x in range(len(corr_array[0]))]
+    fig.add_scatter(x=np.arange(len(corr_array[0])), y=corr_array[0], mode='markers', marker_color='#1f77b4',
+                   marker_size=5)
+    fig.add_scatter(x=np.arange(len(corr_array[0])), y=upper_y, mode='lines', line_color='rgba(255,255,255,0)')
+    fig.add_scatter(x=np.arange(len(corr_array[0])), y=lower_y, mode='lines',fillcolor='rgba(32, 146, 230,0.3)',
+            fill='tonexty', line_color='rgba(255,255,255,0)')
+    fig.update_traces(showlegend=False)
+    fig.update_xaxes(range=[-1,(0.7*lags)])
+    fig.update_yaxes(zerolinecolor='#000000')
     
-    
-class WindowGenerator():
-    '''
-    Generate windows from train, validation and test set
-    '''
-    def __init__(self, input_width, label_width, shift,
-                train_df, val_df, test_df,
-                label_columns=None):
-        # Store the raw data.
-        self.train_df = train_df
-        self.val_df = val_df
-        self.test_df = test_df
-
-        # Work out the label column indices.
-        self.label_columns = label_columns
-        if label_columns is not None:
-            self.label_columns_indices = {name: i for i, name in
-                                        enumerate(label_columns)}
-        self.column_indices = {name: i for i, name in
-                                enumerate(train_df.columns)}
-
-        # Work out the window parameters.
-        self.input_width = input_width
-        self.label_width = label_width
-        self.shift = shift
-
-        self.total_window_size = input_width + shift
-
-        self.input_slice = slice(0, input_width)
-        self.input_indices = np.arange(self.total_window_size)[self.input_slice]
-
-        self.label_start = self.total_window_size - self.label_width
-        self.labels_slice = slice(self.label_start, None)
-        self.label_indices = np.arange(self.total_window_size)[self.labels_slice]
-
-    def __repr__(self):
-        return '\n'.join([
-            f'Total window size: {self.total_window_size}',
-            f'Input indices: {self.input_indices}',
-            f'Label indices: {self.label_indices}',
-            f'Label column name(s): {self.label_columns}'])
-
-    def split_window(self, features):
-        inputs = features[:, self.input_slice, :]
-        labels = features[:, self.labels_slice, :]
-        if self.label_columns is not None:
-            labels = tf.stack(
-            [labels[:, :, self.column_indices[name]] for name in self.label_columns],
-            axis=-1)
-
-        # Slicing doesn't preserve static shape information, so set the shapes
-        # manually. This way the `tf.data.Datasets` are easier to inspect.
-        inputs.set_shape([None, self.input_width, None])
-        labels.set_shape([None, self.label_width, None])
-
-        return inputs, labels
-    
-    def make_dataset(self, data):
-        data = np.array(data, dtype=np.float32)
-        ds = tf.keras.utils.timeseries_dataset_from_array(
-            data=data,
-            targets=None,
-            sequence_length=self.total_window_size,
-            sequence_stride=1,
-            shuffle=True,
-            batch_size=32,)
-
-        ds = ds.map(self.split_window)
-
-        return ds
-
-    @property
-    def train(self):
-        return self.make_dataset(self.train_df)
-
-    @property
-    def val(self):
-            return self.make_dataset(self.val_df)
-
-    @property
-    def test(self):
-        return self.make_dataset(self.test_df)
-
-    @property
-    def example(self):
-        """Get and cache an example batch of `inputs, labels` for plotting."""
-        result = getattr(self, '_example', None)
-        if result is None:
-            # No example batch was found, so get one from the `.train` dataset
-            result = next(iter(self.train))
-            # And cache it for next time
-            self._example = result
-        return result
-    
-    def plot(self, model=None, plot_col='glucose', max_subplots=3):
-        inputs, labels = self.example
-        plt.figure(figsize=(12, 8))
-        plot_col_index = self.column_indices[plot_col]
-        max_n = min(max_subplots, len(inputs))
-        for n in range(max_n):
-            plt.subplot(max_n, 1, n+1)
-            plt.ylabel(f'{plot_col} [normed]')
-            plt.plot(self.input_indices, inputs[n, :, plot_col_index],
-                    label='Inputs', marker='.', zorder=-10)
-
-            if self.label_columns:
-                label_col_index = self.label_columns_indices.get(plot_col, None)
-            else:
-                label_col_index = plot_col_index
-
-            if label_col_index is None:
-                continue
-
-            plt.scatter(self.label_indices, labels[n, :, label_col_index],
-                        edgecolors='k', label='Labels', c='#2ca02c', s=64)
-            if model is not None:
-                predictions = model(inputs)
-                plt.scatter(self.label_indices, predictions[n, :, label_col_index],
-                            marker='X', edgecolors='k', label='Predictions',
-                            c='#ff7f0e', s=64)
-
-            if n == 0:
-                plt.legend()
-
-        plt.xlabel('Time [5Min]')
-
-    
+    title='Partial Autocorrelation (PACF)' if plot_pacf else 'Autocorrelation (ACF)'
+    fig.update_layout(title=title)
+    fig.show()

@@ -139,7 +139,6 @@ dmypy.json
 dask-worker-space/
 
 # pickle files
-test.ipynb
 *_pkl
 
 # parquet files
