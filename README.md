@@ -1,6 +1,8 @@
 # A data-driven approach to healthcare treatment with smartwatches
 
-The aim of the project is then to utilize the different metrics from the smart watches and use them to categorize the quality of health of a patient. With the knowledge from the data collection, we could then have a trained machine learning model from which we could interpret and draw conclusions from.
+The new frontier of preventive medicine is to use specific biomarkers to forecast and prevent disease. By way of blood sugar
+forecasts, the project aims to enable diabetics, pre-diabetics, and even non-diabetics to better monitor their blood sugar levels
+in real time without the use of expensive continuous glucose monitors or uncomfortable blood glucose meters.
 
 ## Project Phases
 
